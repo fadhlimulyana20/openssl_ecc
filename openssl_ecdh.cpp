@@ -77,7 +77,7 @@ typedef struct derivedKey derivedKey;
 // 	/* Initialise */
 // 	if(1 != EVP_PKEY_derive_init(ctx)) {
 //         printf("Failed to initialise\n");
-// 		return NULL;        
+// 		return NULL;
 //     }
 
 // 	/* Provide the peer public key */
