@@ -122,7 +122,7 @@ void handleDerivationErrors(int x){
     printf("%d", x);
 }
 
-EVP_PKEY* generateKey(){
+EVP_PKEY* generateKey(int NID){
     EVP_PKEY_CTX *paramGenCtx = NULL, *keyGenCtx = NULL;
     EVP_PKEY *params= NULL, *keyPair= NULL;
 
@@ -130,7 +130,7 @@ EVP_PKEY* generateKey(){
 
     if(!EVP_PKEY_paramgen_init(paramGenCtx)) handleErrors();
 
-    EVP_PKEY_CTX_set_ec_paramgen_curve_nid(paramGenCtx, NID_secp521r1);
+    EVP_PKEY_CTX_set_ec_paramgen_curve_nid(paramGenCtx, NID);
 
     EVP_PKEY_paramgen(paramGenCtx, &params);
 
@@ -150,7 +150,7 @@ EVP_PKEY* generateKey(){
 
     BIGNUM *y = BN_new();
 
-    EC_POINT_get_affine_coordinates_GFp(EC_GROUP_new_by_curve_name(NID_secp521r1), pubPoint, x, y, NULL);
+    EC_POINT_get_affine_coordinates_GFp(EC_GROUP_new_by_curve_name(NID), pubPoint, x, y, NULL);
 
     printf("\nprivate : ");
 
@@ -173,13 +173,13 @@ EVP_PKEY* generateKey(){
 /**
     Takes in a private key and extracts the public key from it.
 */
-EVP_PKEY* extractPublicKey(EVP_PKEY *privateKey){
+EVP_PKEY* extractPublicKey(EVP_PKEY *privateKey, int NID){
     EC_KEY *ecKey = EVP_PKEY_get1_EC_KEY(privateKey);
     const EC_POINT *ecPoint = EC_KEY_get0_public_key(ecKey);
 
     EVP_PKEY *publicKey = EVP_PKEY_new();
 
-    EC_KEY *pubEcKey = EC_KEY_new_by_curve_name(NID_secp521r1);
+    EC_KEY *pubEcKey = EC_KEY_new_by_curve_name(NID);
 
     EC_KEY_set_public_key(pubEcKey, ecPoint);
 
@@ -217,19 +217,19 @@ derivedKey* deriveShared(EVP_PKEY *publicKey, EVP_PKEY *privateKey){
 	return dk;
 }
 
-int main() {
-    EVP_PKEY *alice = generateKey();
-    EVP_PKEY *bob = generateKey();
-    EVP_PKEY *alice_public = extractPublicKey(alice);
-    EVP_PKEY *bob_public = extractPublicKey(bob);
-    derivedKey *sec_alice = deriveShared(bob_public, alice);
-    derivedKey *sec_bob = deriveShared(alice_public, bob);
-    BIGNUM *secretAliceBN = BN_new();
-    BIGNUM *secretBobBN = BN_new();
-    BN_bin2bn((const unsigned char *)sec_alice->secret, sec_alice->length, secretAliceBN);
-    BN_bin2bn((const unsigned char *)sec_bob->secret, sec_bob->length, secretBobBN);
-    printf("\n\nSecret computed by Alice :\n");
-    BN_print_fp(stdout, secretAliceBN);
-    printf("\n\nSecret computed by Bob :\n");
-    BN_print_fp(stdout, secretBobBN);
-}
+// int main() {
+//     EVP_PKEY *alice = generateKey(NID_secp521r1);
+//     EVP_PKEY *bob = generateKey(NID_secp521r1);
+//     EVP_PKEY *alice_public = extractPublicKey(alice, NID_secp521r1);
+//     EVP_PKEY *bob_public = extractPublicKey(bob, NID_secp521r1);
+//     derivedKey *sec_alice = deriveShared(bob_public, alice);
+//     derivedKey *sec_bob = deriveShared(alice_public, bob);
+//     BIGNUM *secretAliceBN = BN_new();
+//     BIGNUM *secretBobBN = BN_new();
+//     BN_bin2bn((const unsigned char *)sec_alice->secret, sec_alice->length, secretAliceBN);
+//     BN_bin2bn((const unsigned char *)sec_bob->secret, sec_bob->length, secretBobBN);
+//     printf("\n\nSecret computed by Alice :\n");
+//     BN_print_fp(stdout, secretAliceBN);
+//     printf("\n\nSecret computed by Bob :\n");
+//     BN_print_fp(stdout, secretBobBN);
+// }
