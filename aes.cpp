@@ -2,6 +2,7 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <string.h>
+#include <math.h>
 
 void handleErrors(void)
 {
@@ -19,7 +20,7 @@ int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
     int ciphertext_len;
 
     /* Create and initialise the context */
-    if(!(ctx = EVP_CIPHER_CTX_new()))
+    if (!(ctx = EVP_CIPHER_CTX_new()))
         handleErrors();
 
     /*
@@ -29,14 +30,14 @@ int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
      * IV size for *most* modes is the same as the block size. For AES this
      * is 128 bits
      */
-    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
+    if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
         handleErrors();
 
     /*
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len))
+    if (1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len))
         handleErrors();
     ciphertext_len = len;
 
@@ -44,7 +45,7 @@ int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
      * Finalise the encryption. Further ciphertext bytes may be written at
      * this stage.
      */
-    if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len))
+    if (1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len))
         handleErrors();
     ciphertext_len += len;
 
@@ -64,7 +65,7 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
     int plaintext_len;
 
     /* Create and initialise the context */
-    if(!(ctx = EVP_CIPHER_CTX_new()))
+    if (!(ctx = EVP_CIPHER_CTX_new()))
         handleErrors();
 
     /*
@@ -74,14 +75,14 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
      * IV size for *most* modes is the same as the block size. For AES this
      * is 128 bits
      */
-    if(1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
+    if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
         handleErrors();
 
     /*
      * Provide the message to be decrypted, and obtain the plaintext output.
      * EVP_DecryptUpdate can be called multiple times if necessary.
      */
-    if(1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len))
+    if (1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len))
         handleErrors();
     plaintext_len = len;
 
@@ -89,7 +90,7 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
      * Finalise the decryption. Further plaintext bytes may be written at
      * this stage.
      */
-    if(1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len))
+    if (1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len))
         handleErrors();
     plaintext_len += len;
 
@@ -99,10 +100,66 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
     return plaintext_len;
 }
 
+int calcDecodeLength(const char *b64input)
+{ // Calculates the length of a decoded base64 string
+    int len = strlen(b64input);
+    int padding = 0;
+
+    if (b64input[len - 1] == '=' && b64input[len - 2] == '=') // last two chars are =
+        padding = 2;
+    else if (b64input[len - 1] == '=') // last char is =
+        padding = 1;
+
+    return (int)len * 0.75 - padding;
+}
+
+int Base64Decode(char *b64message, char **buffer)
+{ // Decodes a base64 encoded string
+    BIO *bio, *b64;
+    int decodeLen = calcDecodeLength(b64message),
+        len = 0;
+    *buffer = (char *)malloc(decodeLen + 1);
+    FILE *stream = fmemopen(b64message, strlen(b64message), "r");
+
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_new_fp(stream, BIO_NOCLOSE);
+    bio = BIO_push(b64, bio);
+    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); // Do not use newlines to flush buffer
+    len = BIO_read(bio, *buffer, strlen(b64message));
+    // Can test here if len == decodeLen - if not, then return an error
+    (*buffer)[len] = '\0';
+
+    BIO_free_all(bio);
+    fclose(stream);
+
+    return (0); // success
+}
+
+int Base64Encode(char *message, char **buffer)
+{
+    BIO *bio, *b64;
+    FILE *stream;
+    int encodedSize = 4 * ceil((double)strlen(message) / 3);
+    *buffer = (char *)malloc(encodedSize + 1);
+
+    stream = fmemopen(*buffer, encodedSize + 1, "w");
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_new_fp(stream, BIO_NOCLOSE);
+    bio = BIO_push(b64, bio);
+    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); // Ignore newlines - write everything in one line
+    BIO_write(bio, message, strlen(message));
+    BIO_flush(bio);
+    BIO_free_all(bio);
+    fclose(stream);
+
+    return (0); // success
+}
+
 // References
 // https://stackoverflow.com/questions/71073777/openssl-bio-read-on-string-returns-incomplete-base64-encoding
+// https://gist.github.com/barrysteyn/4409525
 
-int main (void)
+int main(void)
 {
     /*
      * Set up the key and iv. Do I need to say to not hard code these in a
@@ -132,12 +189,12 @@ int main (void)
     int decryptedtext_len, ciphertext_len;
 
     /* Encrypt the plaintext */
-    ciphertext_len = encrypt (plaintext, strlen ((char *)plaintext), key, iv,
-                              ciphertext);
+    ciphertext_len = encrypt(plaintext, strlen((char *)plaintext), key, iv,
+                             ciphertext);
 
     /* Do something useful with the ciphertext here */
     printf("Ciphertext is:\n");
-    BIO_dump_fp (stdout, (const char *)ciphertext, ciphertext_len);
+    BIO_dump_fp(stdout, (const char *)ciphertext, ciphertext_len);
 
      // configure base64 filter
     BIO *b64 = BIO_new(BIO_f_base64());
@@ -157,16 +214,18 @@ int main (void)
     char *ptr = NULL;
     long len = BIO_get_mem_data(bmem, &ptr);
 
-    printf(ptr);
-    printf("\n");
+    char *base64DecodeOutput;
+    Base64Decode(ptr, &base64DecodeOutput);
+    printf("Output: %s\n", base64DecodeOutput);
+    BIO_dump_fp(stdout, (const char *)base64DecodeOutput, ciphertext_len);
 
     // dump the converted data to stdout
-    fwrite(ptr, (size_t)len, 1, stdout);
-    fputc('\n', stdout);
-    fflush(stdout);
+    // fwrite(ptr, (size_t)len, 1, stdout);
+    // fputc('\n', stdout);
+    // fflush(stdout);
 
     /* Decrypt the ciphertext */
-    decryptedtext_len = decrypt(ciphertext, ciphertext_len, key, iv,
+    decryptedtext_len = decrypt((unsigned char *)base64DecodeOutput, ciphertext_len, key, iv,
                                 decryptedtext);
 
     /* Add a NULL terminator. We are expecting printable text */
@@ -175,7 +234,6 @@ int main (void)
     /* Show the decrypted text */
     printf("Decrypted text is:\n");
     printf("%s\n", decryptedtext);
-
 
     return 0;
 }
