@@ -99,6 +99,9 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
     return plaintext_len;
 }
 
+// References
+// https://stackoverflow.com/questions/71073777/openssl-bio-read-on-string-returns-incomplete-base64-encoding
+
 int main (void)
 {
     /*
@@ -107,7 +110,7 @@ int main (void)
      */
 
     /* A 256 bit key */
-    unsigned char *key = (unsigned char *)"01234567890123456789012345678901";
+    unsigned char *key = (unsigned char *)"20EAE714A5DC2F1F26DF7F88F42A70DFD19FC1780F9AE8CD720232E40ACD5CD5416CB917AAB2EEC521E77D5F5AD36C2ED579090D90B9A39A7015941D0C608BB5B3";
 
     /* A 128 bit IV */
     unsigned char *iv = (unsigned char *)"0123456789012345";
@@ -135,6 +138,32 @@ int main (void)
     /* Do something useful with the ciphertext here */
     printf("Ciphertext is:\n");
     BIO_dump_fp (stdout, (const char *)ciphertext, ciphertext_len);
+
+     // configure base64 filter
+    BIO *b64 = BIO_new(BIO_f_base64());
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
+    // configure a memory bio
+    BIO *bmem = BIO_new(BIO_s_mem());
+
+    // chain bios
+    BIO *bio = BIO_push(b64, bmem);
+
+    // write to target chain and flush
+    BIO_write(bio, ciphertext, ciphertext_len);
+    BIO_flush(bio);
+
+    // reap memory buffer
+    char *ptr = NULL;
+    long len = BIO_get_mem_data(bmem, &ptr);
+
+    printf(ptr);
+    printf("\n");
+
+    // dump the converted data to stdout
+    fwrite(ptr, (size_t)len, 1, stdout);
+    fputc('\n', stdout);
+    fflush(stdout);
 
     /* Decrypt the ciphertext */
     decryptedtext_len = decrypt(ciphertext, ciphertext_len, key, iv,

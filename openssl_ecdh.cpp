@@ -130,7 +130,7 @@ EVP_PKEY* generateKey(){
 
     if(!EVP_PKEY_paramgen_init(paramGenCtx)) handleErrors();
 
-    EVP_PKEY_CTX_set_ec_paramgen_curve_nid(paramGenCtx, NID_secp112r1);
+    EVP_PKEY_CTX_set_ec_paramgen_curve_nid(paramGenCtx, NID_secp521r1);
 
     EVP_PKEY_paramgen(paramGenCtx, &params);
 
@@ -150,7 +150,7 @@ EVP_PKEY* generateKey(){
 
     BIGNUM *y = BN_new();
 
-    EC_POINT_get_affine_coordinates_GFp(EC_GROUP_new_by_curve_name(NID_secp112r1), pubPoint, x, y, NULL);
+    EC_POINT_get_affine_coordinates_GFp(EC_GROUP_new_by_curve_name(NID_secp521r1), pubPoint, x, y, NULL);
 
     printf("\nprivate : ");
 
@@ -179,7 +179,7 @@ EVP_PKEY* extractPublicKey(EVP_PKEY *privateKey){
 
     EVP_PKEY *publicKey = EVP_PKEY_new();
 
-    EC_KEY *pubEcKey = EC_KEY_new_by_curve_name(NID_secp112r1);
+    EC_KEY *pubEcKey = EC_KEY_new_by_curve_name(NID_secp521r1);
 
     EC_KEY_set_public_key(pubEcKey, ecPoint);
 
