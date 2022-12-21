@@ -12,6 +12,14 @@ int main()
     CROW_ROUTE(app, "/")
     ([]()
      { return "Hello world"; });
+    
+    CROW_ROUTE(app, "/generate-key").methods("POST"_method)
+    ([](const crow::request req) {
+        crow::json::wvalue res;
+
+        EVP_PKEY *private_key = generateKey(NID_secp521r1);
+        EVP_PKEY *public_key = extractPublicKey(private_key, NID_secp521r1);
+    });
 
     CROW_ROUTE(app, "/encrypt").methods("POST"_method)
     ([](const crow::request& req) {

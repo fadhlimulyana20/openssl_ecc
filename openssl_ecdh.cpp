@@ -2,6 +2,7 @@
 #include <openssl/evp.h>
 #include <openssl/ec.h>
 #include <assert.h>
+#include <openssl/pem.h>
 
 using namespace std;
 
@@ -126,6 +127,8 @@ EVP_PKEY* generateKey(int NID){
     EVP_PKEY_CTX *paramGenCtx = NULL, *keyGenCtx = NULL;
     EVP_PKEY *params= NULL, *keyPair= NULL;
 
+    PEM_write_bio_EC_PUBKEY
+
     paramGenCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
 
     if(!EVP_PKEY_paramgen_init(paramGenCtx)) handleErrors();
@@ -190,7 +193,7 @@ EVP_PKEY* extractPublicKey(EVP_PKEY *privateKey, int NID){
 
     return publicKey;
 }
-
+                                                                                                                                                                                                                                                                                                                
 /**
     Takes in the private key and peer public key and spits out the derived shared secret.
 */
